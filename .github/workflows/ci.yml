@@ -7,7 +7,7 @@ on:
 
 jobs:
   smoke-test:
-    name: Run case (Julia ${{ matrix.julia-version }} on ${{ matrix.os }})
+    name: Run + plot (Julia ${{ matrix.julia-version }} on ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -27,21 +27,21 @@ jobs:
 
       - uses: julia-actions/cache@v2
 
-      - name: Install GenX into the project
-        run: julia --project=. -e 'using Pkg; Pkg.add("GenX"); Pkg.instantiate()'
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
-      - name: Force TDR for CI (fast smoke test)
-        shell: bash
-        run: |
-          # Ensure TimeDomainReduction is on so CI runs in <1 min
-          sed -i.bak 's/^TimeDomainReduction:.*/TimeDomainReduction: 1/' settings/genx_settings.yml
-          rm settings/genx_settings.yml.bak
-          grep TimeDomainReduction settings/genx_settings.yml
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-      - name: Run Sweden 4-zone case
-        run: julia --project=. --color=yes Run.jl
+      - name: Install Julia + Python deps
+        run: make install
 
-      - name: Assert results were written
+      - name: Run case (fast — TDR=1)
+        run: make run-fast
+
+      - name: Assert key result files exist
         shell: bash
         run: |
           test -f results/costs.csv
@@ -49,13 +49,24 @@ jobs:
           test -f results/power.csv
           echo "--- costs.csv ---"
           cat results/costs.csv
-          echo "--- capacity.csv ---"
+          echo "--- capacity.csv (head) ---"
           head -20 results/capacity.csv
 
-      - name: Upload results
+      - name: Render plots (PNG + interactive HTML)
+        run: make plot
+
+      - name: Upload results CSVs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: results-${{ matrix.os }}-julia-${{ matrix.julia-version }}
           path: results/
+          if-no-files-found: warn
+
+      - name: Upload plots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plots-${{ matrix.os }}-julia-${{ matrix.julia-version }}
+          path: plots/output/
           if-no-files-found: warn

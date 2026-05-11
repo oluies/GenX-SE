@@ -7,6 +7,9 @@ deps/build.log
 results/
 TDR_results/
 
+# Generated plots
+plots/output/
+
 # Real ENTSO-E data (don't redistribute)
 data/.env
 data/raw/

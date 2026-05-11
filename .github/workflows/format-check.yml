@@ -18,17 +18,5 @@ jobs:
 
       - uses: julia-actions/cache@v2
 
-      - name: Install JuliaFormatter
-        run: julia -e 'using Pkg; Pkg.add(PackageSpec(name = "JuliaFormatter", version = "1"))'
-
-      - name: Run formatter (check only — no writes)
-        run: |
-          julia -e '
-            using JuliaFormatter
-            ok = format(".", verbose = true, overwrite = false)
-            if !ok
-              println(stderr, "Formatting issues detected. Run JuliaFormatter locally:")
-              println(stderr, "  julia -e \"using JuliaFormatter; format(\\\".\\\")\"")
-              exit(1)
-            end
-          '
+      - name: Format check (fail on diff)
+        run: make fmt-check
