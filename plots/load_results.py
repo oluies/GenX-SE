@@ -102,22 +102,31 @@ def load_capacity(results: Path) -> pd.DataFrame:
     return df[["Resource", "Zone", "tech", "StartCap", "EndCap", "NewCap"]]
 
 
+def _temporal_path(results: Path, name: str) -> Path:
+    """Prefer the reconstructed 8760h file in Full_TimeSeries/ if available.
+
+    GenX writes Full_TimeSeries/<name>.csv when OutputFullTimeSeries=1 and
+    TimeDomainReduction=1. That file is properly weighted, so summing its
+    hourly values reproduces the annual totals.
+    """
+    full = results / "Full_TimeSeries" / name
+    return full if full.exists() else results / name
+
+
 def _load_temporal(filepath: Path) -> pd.DataFrame:
     """Parse a GenX transposed temporal CSV into a tidy long-format DataFrame.
 
-    Returns columns: entity (Resource/Line/Zone), zone (or None), hour, value.
+    Returns columns: entity (Resource/Line/Zone), hour, value.
     For power.csv, entity is the resource name. For flow.csv it's the line
     index. For prices.csv it's the zone label.
     """
     raw = pd.read_csv(filepath, header=None)
     # Row 0: "Resource"|"Line"|"Zone", then entity labels, last cell "Total"
     # Row 1: "Zone" row (only for power.csv); for flow/prices it varies
-    # Row 2: "AnnualSum" row
+    # Row 2: "AnnualSum" row (only when written by write_fulltimeseries)
     # Rows 3+: "t<n>", then hourly values
     label_col = raw.iloc[:, 0].astype(str)
     header_row = raw.iloc[0, 1:].astype(str).reset_index(drop=True)
-    # Pick the row whose label starts with "t1" — that's where the time series
-    # starts. Hours are 1-indexed.
     t_mask = label_col.str.match(r"^t\d+$")
     t_rows = raw.loc[t_mask, raw.columns[1:]].reset_index(drop=True)
     t_rows.columns = header_row
@@ -125,7 +134,6 @@ def _load_temporal(filepath: Path) -> pd.DataFrame:
         label_col[t_mask].str.replace("t", "", regex=False).astype(int).reset_index(drop=True)
     )
     t_rows.insert(0, "hour", hours)
-    # Drop "Total" column if present
     if "Total" in t_rows.columns:
         t_rows = t_rows.drop(columns=["Total"])
     long = t_rows.melt(id_vars="hour", var_name="entity", value_name="value")
@@ -133,26 +141,58 @@ def _load_temporal(filepath: Path) -> pd.DataFrame:
     return long
 
 
+def _load_annual_sum(filepath: Path) -> pd.Series:
+    """Read the 'AnnualSum' row from a transposed temporal CSV.
+
+    Returns a Series indexed by entity name with the (already weight-applied)
+    annual sum in MWh.
+    """
+    raw = pd.read_csv(filepath, header=None)
+    label_col = raw.iloc[:, 0].astype(str)
+    header_row = raw.iloc[0, 1:].astype(str).reset_index(drop=True)
+    annual_mask = label_col == "AnnualSum"
+    if not annual_mask.any():
+        return pd.Series(dtype=float)
+    row = raw.loc[annual_mask, raw.columns[1:]].iloc[0].reset_index(drop=True)
+    row.index = header_row
+    row = row.drop(labels=["Total"], errors="ignore")
+    return pd.to_numeric(row, errors="coerce")
+
+
 def load_power(results: Path) -> pd.DataFrame:
-    """Tidy hourly generation: Resource, zone, tech, hour, MW."""
-    long = _load_temporal(results / "power.csv")
+    """Tidy hourly generation: Resource, zone, tech, hour, MW.
+
+    Uses Full_TimeSeries/power.csv when available (TDR reconstruction),
+    otherwise the top-level power.csv.
+    """
+    long = _load_temporal(_temporal_path(results, "power.csv"))
     long = long.rename(columns={"entity": "Resource", "value": "MW"})
     long["tech"] = long["Resource"].apply(classify_resource)
     long["zone"] = long["Resource"].apply(extract_zone)
     return long
 
 
+def load_annual_generation(results: Path) -> pd.DataFrame:
+    """Annual energy per resource (MWh), pulled from the AnnualSum row of
+    the top-level power.csv (already weight-applied by GenX)."""
+    annual = _load_annual_sum(results / "power.csv")
+    df = pd.DataFrame({"Resource": annual.index.astype(str), "MWh": annual.values})
+    df["tech"] = df["Resource"].apply(classify_resource)
+    df["zone"] = df["Resource"].apply(extract_zone)
+    df["MWh"] = pd.to_numeric(df["MWh"], errors="coerce")
+    return df
+
+
 def load_flow(results: Path) -> pd.DataFrame:
     """Tidy snitt flow: line, hour, MW (positive = Start_Zone -> End_Zone)."""
-    long = _load_temporal(results / "flow.csv")
+    long = _load_temporal(_temporal_path(results, "flow.csv"))
     return long.rename(columns={"entity": "line", "value": "MW"})
 
 
 def load_prices(results: Path) -> pd.DataFrame:
     """Tidy zonal price: zone, hour, $/MWh."""
-    long = _load_temporal(results / "prices.csv")
+    long = _load_temporal(_temporal_path(results, "prices.csv"))
     long = long.rename(columns={"entity": "zone", "value": "price"})
-    # zone label is typically "1","2","3","4" — coerce
     long["zone"] = pd.to_numeric(long["zone"], errors="coerce").astype("Int64")
     return long
 

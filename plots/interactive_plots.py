@@ -44,9 +44,10 @@ def capacity_bar(cap: pd.DataFrame, out_dir: Path) -> None:
     _save(fig, out_dir / "capacity_by_zone.html")
 
 
-def annual_energy_mix(power: pd.DataFrame, out_dir: Path) -> None:
-    df = power.groupby(["zone", "tech"], as_index=False)["MW"].sum()
-    df["TWh"] = df["MW"] / 1e6
+def annual_energy_mix(annual: pd.DataFrame, out_dir: Path) -> None:
+    """`annual` is the AnnualSum-based DataFrame from load_annual_generation."""
+    df = annual.groupby(["zone", "tech"], as_index=False)["MWh"].sum()
+    df["TWh"] = df["MWh"] / 1e6
     df["Zone label"] = df["zone"].map(lambda z: ZONE_LABELS.get(int(z), str(z)))
     fig = px.bar(
         df,

@@ -15,6 +15,7 @@ from pathlib import Path
 from . import interactive_plots as ip
 from . import static_plots as sp
 from .load_results import (
+    load_annual_generation,
     load_capacity,
     load_demand,
     load_flow,
@@ -59,8 +60,9 @@ def main() -> int:
         print("  skip capacity (no capacity.csv)")
 
     if power is not None:
-        sp.annual_energy_mix(power, out_png)
-        ip.annual_energy_mix(power, out_html)
+        annual = load_annual_generation(results)
+        sp.annual_energy_mix(annual, out_png)
+        ip.annual_energy_mix(annual, out_html)
 
         # Winter week (mid-January) and summer week (mid-July) samples.
         # Use clamped windows so this works for both TDR and full 8760h runs.
