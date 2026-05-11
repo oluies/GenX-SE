@@ -159,6 +159,63 @@ This overwrites `system/Demand_data.csv` and
 on the printed warnings — some PSR types are sparse or missing in early
 data years and need backfilling.
 
+## Battery storage data sources
+
+The defaults in `resources/Storage.csv` (`Inv_Cost_per_MWyr: 19584`,
+`Inv_Cost_per_MWhyr: 22494`, η_up=η_down=0.92) are inherited from GenX's
+`three_zones` example — NREL ATB ~2022 numbers. For a real research run
+you'll want fresher inputs from one of the sources below.
+
+### Cost parameters (for `resources/Storage.csv`)
+
+| Source | Notes | Free? |
+|--------|-------|-------|
+| **NREL ATB** ([atb.nrel.gov](https://atb.nrel.gov)) | Annual update; Li-ion utility, flow, long-duration. Bottom-up CAPEX + OPEX trajectories to 2050. **The gold standard.** | ✅ |
+| **Lazard LCOS** | Annual Levelized Cost of Storage report. Pragmatic market-driven numbers. | ✅ |
+| **IEA *Batteries and Secure Energy Transitions*** (2024) | Global cost trajectories + chemistry sensitivity. | ✅ |
+| **BloombergNEF Battery Price Survey** | Pack-level $/kWh; ~$115/kWh in 2024. | ❌ subscription |
+| **DNV ETO** storage section | Forward-looking 2050 trajectories. | ✅ summary |
+
+### Installed Nordic BESS (for `Existing_Cap_MW`)
+
+| Source | What you get | Coverage |
+|--------|--------------|----------|
+| **ENTSO-E Transparency** A68 | Per bidding zone, per PSR. Battery reporting is patchy until ~2023. | All 12 zones |
+| **Energimyndigheten** | Swedish energy statistics, BESS broken out. | SE1–SE4 |
+| **Energinet Energidataservice** | REST API, real-time + historical. Cleanest of the Nordic TSO APIs. | DK1, DK2 |
+| **Fingrid Open Data** | REST/JSON, BESS specifically tracked. | FI |
+| **Statnett** statistical bulletins | NO has very little BESS — hydro fills that role. | NO1–NO5 |
+| **Energy Storage Map** ([energystoragemap.org](https://energystoragemap.org)) | Operational project tracker, searchable. | Europe |
+
+### Market revenue (the "why build batteries" question)
+
+In the Nordics, ~80% of BESS revenue comes from frequency reserves
+(FCR-N, FCR-D-up/down, aFRR, mFRR), not energy-arbitrage. Useful for
+calibrating `Reg_Cost` / `Rsv_Cost` or building a separate reserve
+optimisation:
+
+| Source | Market product |
+|--------|----------------|
+| **Mimer** (Svenska Kraftnät) | FCR-N, FCR-D-up, FCR-D-down auction prices per hour |
+| **Fingrid Open Data** | FCR / aFRR / mFRR for FI |
+| **eSett** | Pan-Nordic imbalance + reserves settlement |
+| **Energinet Energidataservice** | DK1, DK2 reserve products |
+| **Modo Energy** | Aggregated UK + EU BESS revenue dashboards (industry-standard) |
+
+### Project pipeline
+
+| Source | Coverage |
+|--------|----------|
+| **EASE Storage Map** | Europe-wide pipeline, project-by-project |
+| **S&P Global Power Plant database** | All projects, ownership, status |
+| **Vattenfall / Fortum / Ørsted / Statkraft** investor decks | Explicit Nordic BESS plans, usually with 2030 targets |
+
+**Practical recommendation for next iteration**: drop NREL ATB 2024 Li-ion
+Utility-Scale into `resources/Storage.csv` (CAPEX ~$14k/MW-yr + ~$32k/MWh-yr,
+both trending down toward 2030). For existing capacity, use ENTSO-E A68 —
+but Nordic utility-scale BESS is still <1 GW total across all 12 zones at
+end-2024, so zero is a defensible rounding for a 2024 baseline.
+
 ## Files
 
 ```
