@@ -1,0 +1,27 @@
+# Julia
+Manifest.toml
+deps/build.log
+*.cov
+
+# GenX outputs
+results/
+TDR_results/
+
+# Real ENTSO-E data (don't redistribute)
+data/.env
+data/raw/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp

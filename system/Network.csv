@@ -1,0 +1,5 @@
+,Network_zones,Network_Lines,Start_Zone,End_Zone,Line_Max_Flow_MW,transmission_path_name,distance_mile,Line_Loss_Percentage,Line_Max_Reinforcement_MW,Line_Reinforcement_Cost_per_MWyr,DerateCapRes_1,CapRes_Excl_1
+SE1,z1,1,1,2,3300,Snitt1_SE1_to_SE2,250,0.025,3300,15000,0.95,0
+SE2,z2,2,2,3,7300,Snitt2_SE2_to_SE3,220,0.022,7300,15000,0.95,0
+SE3,z3,3,3,4,5400,Snitt4_SE3_to_SE4,220,0.022,5400,15000,0.95,0
+SE4,z4,,,,,,,,,,,

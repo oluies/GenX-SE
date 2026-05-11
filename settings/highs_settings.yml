@@ -1,0 +1,7 @@
+# HiGHS solver settings for the Sweden 4-zone case
+Feasib_Tol: 1.0e-05
+Optimal_Tol: 1.0e-05
+TimeLimit: 1.0e23
+Pre_Solve: choose
+Method: ipm
+run_crossover: "on"

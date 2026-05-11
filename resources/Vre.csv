@@ -1,0 +1,8 @@
+Resource,Zone,Num_VRE_Bins,New_Build,Can_Retire,Existing_Cap_MW,Max_Cap_MW,Min_Cap_MW,Inv_Cost_per_MWyr,Fixed_OM_Cost_per_MWyr,Var_OM_Cost_per_MWh,Reg_Max,Rsv_Max,Reg_Cost,Rsv_Cost,region,cluster
+SE1_onshore_wind,1,1,1,1,2400,-1,0,95000,40000,0.1,0,0,0,0,SE1,1
+SE2_onshore_wind,2,1,1,1,5400,-1,0,95000,40000,0.1,0,0,0,0,SE2,1
+SE3_onshore_wind,3,1,1,1,4500,-1,0,95000,40000,0.1,0,0,0,0,SE3,1
+SE4_onshore_wind,4,1,1,1,1700,-1,0,95000,40000,0.1,0,0,0,0,SE4,1
+SE4_offshore_wind,4,1,1,1,200,-1,0,200000,80000,0.1,0,0,0,0,SE4,1
+SE3_solar_pv,3,1,1,1,1800,-1,0,80000,18000,0,0,0,0,0,SE3,1
+SE4_solar_pv,4,1,1,1,600,-1,0,80000,18000,0,0,0,0,0,SE4,1

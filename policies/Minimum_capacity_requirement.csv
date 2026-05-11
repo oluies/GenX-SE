@@ -1,0 +1,3 @@
+MinCapReqConstraint,ConstraintDescription,Min_MW
+1,Wind_all_zones,20000
+2,Solar_PV_total,5000

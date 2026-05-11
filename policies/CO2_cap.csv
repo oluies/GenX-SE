@@ -1,0 +1,5 @@
+,Network_zones,CO_2_Cap_Zone_1,CO_2_Cap_Zone_2,CO_2_Cap_Zone_3,CO_2_Cap_Zone_4,CO_2_Max_tons_MWh_1,CO_2_Max_tons_MWh_2,CO_2_Max_tons_MWh_3,CO_2_Max_tons_MWh_4,CO_2_Max_Mtons_1,CO_2_Max_Mtons_2,CO_2_Max_Mtons_3,CO_2_Max_Mtons_4
+SE1,z1,1,1,1,1,0.01,0.01,0.01,0.01,0.001,0.001,0.001,0.001
+SE2,z2,0,0,0,0,0,0,0,0,0,0,0,0
+SE3,z3,0,0,0,0,0,0,0,0,0,0,0,0
+SE4,z4,0,0,0,0,0,0,0,0,0,0,0,0

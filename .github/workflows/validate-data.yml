@@ -1,0 +1,127 @@
+name: Validate Data
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  csv-structure:
+    name: CSV structure and counts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate Sweden case CSV structure
+        shell: python
+        run: |
+          import csv, sys
+          from pathlib import Path
+
+          HOURS = 8760
+          errors = []
+
+          def check(condition, message):
+              if not condition:
+                  errors.append(message)
+
+          # Network has 4 zones
+          rows = list(csv.reader(open("system/Network.csv")))
+          check(
+              len(rows) == 5,  # header + 4 zones
+              f"Network.csv expected 5 rows (header + 4 zones), got {len(rows)}",
+          )
+          zones = [r[0] for r in rows[1:] if r and r[0]]
+          check(
+              zones == ["SE1", "SE2", "SE3", "SE4"],
+              f"Network.csv zones expected SE1..SE4, got {zones}",
+          )
+
+          # Demand has 8760 + header
+          rows = list(csv.reader(open("system/Demand_data.csv")))
+          check(
+              len(rows) == HOURS + 1,
+              f"Demand_data.csv expected {HOURS + 1} rows, got {len(rows)}",
+          )
+          hdr = rows[0]
+          for z in ("Demand_MW_z1", "Demand_MW_z2", "Demand_MW_z3", "Demand_MW_z4"):
+              check(z in hdr, f"Demand_data.csv missing column {z}")
+
+          # Variability has 8760 + header
+          rows = list(csv.reader(open("system/Generators_variability.csv")))
+          check(
+              len(rows) == HOURS + 1,
+              f"Generators_variability.csv expected {HOURS + 1} rows, got {len(rows)}",
+          )
+
+          # Resource names declared in variability must appear in a resource CSV
+          var_resources = set(rows[0][1:])  # skip Time_Index column
+          declared = set()
+          for fn in ("Thermal.csv", "Vre.csv", "Storage.csv", "Hydro.csv"):
+              p = Path("resources") / fn
+              if not p.exists():
+                  continue
+              with p.open() as f:
+                  r = csv.reader(f)
+                  hdr = next(r)
+                  idx = hdr.index("Resource")
+                  for row in r:
+                      if row and row[idx]:
+                          declared.add(row[idx])
+          missing = var_resources - declared
+          extra = declared - var_resources
+          check(
+              not missing,
+              f"Resources in variability CSV but missing from resource CSVs: {sorted(missing)}",
+          )
+          check(
+              not extra,
+              f"Resources declared but absent from variability CSV: {sorted(extra)}",
+          )
+
+          # Fuels: row 0 = emission factors, then 8760 rows of prices
+          rows = list(csv.reader(open("system/Fuels_data.csv")))
+          check(
+              len(rows) == HOURS + 2,
+              f"Fuels_data.csv expected {HOURS + 2} rows (header + emit + {HOURS} hours), got {len(rows)}",
+          )
+
+          # Thermal resources reference a fuel that exists in Fuels_data.csv
+          fuels_hdr = rows[0][1:]
+          with open("resources/Thermal.csv") as f:
+              r = csv.reader(f)
+              hdr = next(r)
+              fi = hdr.index("Fuel")
+              for row in r:
+                  fuel = row[fi]
+                  check(
+                      fuel in fuels_hdr,
+                      f"Thermal resource {row[0]} uses fuel '{fuel}' missing from Fuels_data.csv",
+                  )
+
+          if errors:
+              print("Validation failed:")
+              for e in errors:
+                  print(f"  - {e}")
+              sys.exit(1)
+          print("All CSV structure checks passed.")
+
+  regenerate-timeseries:
+    name: build_timeseries.py is reproducible
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Regenerate synthetic timeseries
+        run: python3 build_timeseries.py
+
+      - name: Confirm regeneration produces identical files (deterministic seed)
+        run: git diff --exit-code system/Demand_data.csv system/Generators_variability.csv system/Fuels_data.csv

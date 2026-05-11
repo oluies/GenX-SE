@@ -1,0 +1,13 @@
+NetworkExpansion: 0          # 0 = no transmission expansion; 1 = allow expansion
+Trans_Loss_Segments: 1       # piecewise linear loss approximation
+EnergyShareRequirement: 0
+CapacityReserveMargin: 0
+CO2Cap: 0                    # 0 = no CO2 cap (turn to 1 or 2 to activate the policies/CO2_cap.csv file)
+StorageLosses: 1
+MinCapReq: 0                 # set to 1 to enforce policies/Minimum_capacity_requirement.csv
+MaxCapReq: 0
+ParameterScale: 1            # demand/capacity in GW for numerical scaling
+WriteShadowPrices: 1
+UCommit: 2                   # 2 = linearized clustered unit commitment (fast, recommended for SE)
+TimeDomainReduction: 0       # set to 1 to cluster 8760h into representative weeks (much faster)
+OutputFullTimeSeries: 1
