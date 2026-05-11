@@ -1,4 +1,4 @@
-# GenX-SE: Sweden 4-zone (SE1–SE4) energy-system case
+# GenX-SE: Nordic 12-zone energy-system case
 
 [![CI](https://github.com/oluies/GenX-SE/actions/workflows/ci.yml/badge.svg)](https://github.com/oluies/GenX-SE/actions/workflows/ci.yml)
 [![Format Check](https://github.com/oluies/GenX-SE/actions/workflows/format-check.yml/badge.svg)](https://github.com/oluies/GenX-SE/actions/workflows/format-check.yml)
@@ -6,30 +6,57 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A [GenX](https://github.com/GenXProject/GenX) capacity-expansion + dispatch
-case for the four Swedish electricity bidding zones (Norrbotten,
-Mid-Norrland, Mälardalen/Stockholm, Skåne/South), modelled with the three
-north–south transfer cuts **snitt 1, snitt 2, snitt 4**.
+case covering **all 12 Nordic bidding zones**: Sweden (SE1–SE4), Norway
+(NO1–NO5), Finland (FI), and Denmark (DK1, DK2). 17 transmission lines
+including the three Swedish *snitt* cuts (1/2/4), six NO internal lines,
+and seven SE↔neighbor interconnectors. The AC vs HVDC distinction is
+preserved in line names — relevant if you later add `CapacityReserveMargin`
+or reserve-sharing logic (reserves only flow within a synchronous area;
+see [CLAUDE.md](CLAUDE.md)).
 
-> **Status:** runnable scaffold with synthetic 8760-hour profiles calibrated
-> to plausible Swedish totals (≈145 TWh, peak ≈28 GW). Resource capacities
-> reflect roughly 2024-actual fleet sizes. **All time-series data is
-> synthetic** — replace with ENTSO-E observations via `data/fetch_entsoe.py`
-> before reporting results.
+> **Status:** runnable scaffold with synthetic 8760-h profiles calibrated
+> to plausible Nordic totals (≈380 TWh, peak ≈65 GW across the area).
+> Resource capacities reflect roughly 2024-actual fleet sizes.
+> **All time-series data is synthetic** — replace with ENTSO-E observations
+> via `data/fetch_entsoe.py` before reporting results.
 
 ## Topology
 
-| Zone | Region                     | Avg demand | Peak demand |
-|------|----------------------------|-----------:|------------:|
-| SE1  | Norrbotten (Luleå)         |   2.0 GW   |    3.2 GW   |
-| SE2  | Mid-Norrland (Sundsvall)   |   2.5 GW   |    4.0 GW   |
-| SE3  | Mälardalen / Stockholm     |   8.5 GW   |   14.0 GW   |
-| SE4  | Skåne / South (Malmö)      |   3.0 GW   |    4.8 GW   |
+| Zone | Region                              | Sync area  | Avg demand |
+|------|-------------------------------------|------------|-----------:|
+| SE1  | Norrbotten (Luleå)                  | Nordic     |   2.0 GW   |
+| SE2  | Mid-Norrland (Sundsvall)            | Nordic     |   2.5 GW   |
+| SE3  | Mälardalen / Stockholm              | Nordic     |   8.5 GW   |
+| SE4  | Skåne / South (Malmö)               | Nordic     |   3.0 GW   |
+| NO1  | Oslo / Eastern Norway               | Nordic     |   4.1 GW   |
+| NO2  | South Norway / Stavanger            | Nordic     |   4.1 GW   |
+| NO3  | Mid-Norway / Trondheim              | Nordic     |   2.5 GW   |
+| NO4  | Northern Norway / Tromsø            | Nordic     |   1.8 GW   |
+| NO5  | Western Norway / Bergen             | Nordic     |   2.5 GW   |
+| FI   | Finland                             | Nordic     |   9.1 GW   |
+| DK1  | Jutland + Fyn                       | Continental| 2.8 GW     |
+| DK2  | Zealand (Copenhagen)                | Nordic     |   1.4 GW   |
 
-Cross-zone transfer capacities (single-direction NTC, MW):
+### Transmission lines
 
-* **Snitt 1** SE1 ↔ SE2: 3300
-* **Snitt 2** SE2 ↔ SE3: 7300
-* **Snitt 4** SE3 ↔ SE4: 5400
+Three groups of inter-zonal links (NTC values reflect *minRAM*-compliant
+market-available capacity):
+
+**SE internal snitt** (AC): SE1↔SE2 3300, SE2↔SE3 7300, SE3↔SE4 5400
+
+**SE↔neighbor** (mix of AC and HVDC):
+* SE1↔NO4 Ofoten (AC) 700
+* SE2↔NO3 Nea (AC) 1000
+* SE3↔NO1 Hasle (AC) 2050
+* SE1↔FI Tornehamn (AC) 1500
+* SE3↔FI Fenno-Skan (HVDC) 1200
+* SE3↔DK1 Konti-Skan (HVDC) 740
+* SE4↔DK2 Öresund (AC) 1700
+
+**NO internal + NO↔DK** (AC except Skagerrak):
+* NO1↔NO2 3500, NO1↔NO3 500, NO1↔NO5 600
+* NO2↔NO5 600, NO3↔NO4 600, NO3↔NO5 500
+* NO2↔DK1 Skagerrak (HVDC) 1632
 
 > These values are **NTC made available to the market** (post-*minRAM*),
 > not raw thermal line capacity. Under **EU Regulation 2019/943
@@ -48,21 +75,21 @@ Cross-zone transfer capacities (single-direction NTC, MW):
 
 ## Generation fleet (existing capacities, MW)
 
-| Resource              | SE1  | SE2  | SE3  | SE4  | Notes                          |
-|-----------------------|-----:|-----:|-----:|-----:|--------------------------------|
-| Hydro reservoir       | 5300 | 8200 | 2700 |  300 | Energy-to-power ratio 100–2500 h |
-| Nuclear               |    – |    – | 6900 |    – | Forsmark + Ringhals + Oskarshamn |
-| Biomass CHP           |  200 |  400 | 2000 |  800 | New build enabled              |
-| Oil peaker (Karlshamn)|    – |    – |    – | 1700 | Reserve only                   |
-| Onshore wind          | 2400 | 5400 | 4500 | 1700 | New build enabled              |
-| Offshore wind         |    – |    – |    – |  200 | Lillgrund + expansion          |
-| Solar PV              |    – |    – | 1800 |  600 | New build enabled              |
-| Battery storage       |    0 |    0 |    0 |    0 | New build only                 |
+| Resource         | SE1  | SE2  | SE3  | SE4  | NO1  | NO2  | NO3  | NO4  | NO5  | FI    | DK1  | DK2  |
+|------------------|-----:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|------:|-----:|-----:|
+| Hydro reservoir  | 5300 | 8200 | 2700 |  300 | 5000 |10000 | 4000 | 6000 | 8000 |  3200 |   –  |   –  |
+| Nuclear          |   –  |   –  | 6900 |   –  |   –  |   –  |   –  |   –  |   –  |  4400 |   –  |   –  |
+| Biomass CHP      |  200 |  400 | 2000 |  800 |   –  |   –  |   –  |   –  |   –  |  2500 | 2500 | 1000 |
+| Gas / oil peaker |   –  |   –  |   –  | 1700 |   –  |  700 |   –  |   –  |   –  |   –   |  200 |   –  |
+| Onshore wind     | 2400 | 5400 | 4500 | 1700 |  500 | 1500 | 2000 | 1000 |  200 |  6900 | 3400 |  700 |
+| Offshore wind    |   –  |   –  |   –  |  200 |   –  |   –  |   –  |   –  |   –  |   –   | 1700 |  400 |
+| Solar PV         |   –  |   –  | 1800 |  600 |   –  |   –  |   –  |   –  |   –  |   700 | 2000 | 1000 |
+| Battery storage  |   0  |   0  |   0  |   0  |   0  |   0  |   0  |   0  |   0  |    0  |   0  |   0  |
 
-Nuclear and oil are configured as **no-new-build, can-retire** so the model
-chooses whether to keep them economical. All renewables, batteries, and
-biomass CHP can expand. Hydro reservoirs are existing-only (limited
-expansion potential in Sweden).
+Existing nuclear, oil, gas, and hydro are **no-new-build, can-retire** so
+the model chooses whether to keep them economical. All renewables,
+batteries, and biomass CHP can expand. Hydro reservoirs are existing-only
+(limited expansion potential everywhere except possibly NO).
 
 ## How to run
 

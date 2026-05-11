@@ -22,19 +22,21 @@ def main() -> int:
         if not condition:
             errors.append(message)
 
-    # Network has 4 zones --------------------------------------------------
+    # Network has the 12 Nordic zones -------------------------------------
+    EXPECTED_ZONES = [
+        "SE1", "SE2", "SE3", "SE4",
+        "NO1", "NO2", "NO3", "NO4", "NO5",
+        "FI", "DK1", "DK2",
+    ]
     rows = list(csv.reader(open(REPO / "system" / "Network.csv")))
-    check(len(rows) == 5,
-          f"Network.csv: expected 5 rows (header + 4 zones), got {len(rows)}")
     zones = [r[0] for r in rows[1:] if r and r[0]]
-    check(zones == ["SE1", "SE2", "SE3", "SE4"],
-          f"Network.csv: zones must be SE1..SE4, got {zones}")
+    check(zones == EXPECTED_ZONES,
+          f"Network.csv: zones must be {EXPECTED_ZONES}, got {zones}")
 
     # Demand: header + N rows, where N matches Timesteps_per_Rep_Period ----
     rows = list(csv.reader(open(REPO / "system" / "Demand_data.csv")))
     hdr = rows[0]
     tspr_idx = hdr.index("Timesteps_per_Rep_Period")
-    # First data row holds the metadata
     declared_N = int(rows[1][tspr_idx])
     check(declared_N in VALID_N,
           f"Demand_data.csv: Timesteps_per_Rep_Period={declared_N} "
@@ -42,8 +44,9 @@ def main() -> int:
     N = declared_N
     check(len(rows) == N + 1,
           f"Demand_data.csv: expected {N + 1} rows (header + {N} steps), got {len(rows)}")
-    for z in ("Demand_MW_z1", "Demand_MW_z2", "Demand_MW_z3", "Demand_MW_z4"):
-        check(z in hdr, f"Demand_data.csv: missing column {z}")
+    for z in range(1, len(EXPECTED_ZONES) + 1):
+        check(f"Demand_MW_z{z}" in hdr,
+              f"Demand_data.csv: missing column Demand_MW_z{z}")
 
     # Variability: header + N rows ----------------------------------------
     rows = list(csv.reader(open(REPO / "system" / "Generators_variability.csv")))

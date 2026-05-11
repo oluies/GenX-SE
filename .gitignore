@@ -9,6 +9,7 @@ TDR_results/
 
 # Generated plots
 plots/output/
+plots/output_*/
 
 # Real ENTSO-E data (don't redistribute)
 data/.env

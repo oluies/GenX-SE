@@ -86,8 +86,19 @@ def annual_energy_mix(annual: pd.DataFrame, out_dir: Path) -> None:
 def dispatch_week(power: pd.DataFrame, demand: pd.DataFrame, out_dir: Path,
                   hour_start: int, hour_end: int, label: str) -> None:
     """Stacked-area dispatch for a 168-h window, one panel per zone."""
-    fig, axes = plt.subplots(2, 2, figsize=(12, 7), sharex=True)
-    for ax, zone in zip(axes.flatten(), [1, 2, 3, 4]):
+    zones_present = sorted(z for z in power["zone"].dropna().unique() if z in ZONE_LABELS)
+    n = len(zones_present)
+    if n == 0:
+        return
+    cols = 3 if n > 4 else 2
+    rows = (n + cols - 1) // cols
+    fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 3 * rows), sharex=True)
+    axes_flat = axes.flatten() if hasattr(axes, "flatten") else [axes]
+    for i, ax in enumerate(axes_flat):
+        if i >= n:
+            ax.set_visible(False)
+            continue
+        zone = zones_present[i]
         win = power[
             (power["zone"] == zone)
             & (power["hour"] >= hour_start)
@@ -116,7 +127,8 @@ def dispatch_week(power: pd.DataFrame, demand: pd.DataFrame, out_dir: Path,
         ax.plot(d["hour"], d["MW"], color="black", lw=1.2, label="Demand")
         ax.set_title(ZONE_LABELS.get(zone))
         ax.set_ylabel("MW")
-    axes[0, 0].legend(loc="upper right", frameon=False, fontsize=7, ncol=2)
+    # Legend on the first visible axis (handles both 1D and 2D axes arrays)
+    axes_flat[0].legend(loc="upper right", frameon=False, fontsize=7, ncol=2)
     fig.suptitle(f"Dispatch — {label} (hours {hour_start}–{hour_end - 1})")
     fig.tight_layout()
     _save(fig, out_dir / f"dispatch_{label}.png")

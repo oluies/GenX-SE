@@ -1,8 +1,9 @@
-# Project: GenX-Tutorials + Sweden energy-system simulator
+# Project: GenX-SE — Nordic 12-zone energy-system simulator
 
-This repo is a fork of MIT/Princeton's **GenX-Tutorials**. The main local
-addition is a **Swedish 4-zone (SE1–SE4) GenX case** under
-`Tutorials/example_systems_tutorials/sweden_4_zones/`.
+A standalone GenX case covering all 12 Nordic bidding zones — SE1–4,
+NO1–5, FI, DK1, DK2 — with 17 transmission lines including the three
+Swedish snitt cuts, six NO internal AC lines, the seven SE↔neighbor
+interconnectors, and NO2↔DK1 Skagerrak HVDC.
 
 The companion library checkout is at `~/projects/GenX.jl/` — read that
 for canonical input-file formats and source code. Don't modify it from
@@ -10,12 +11,15 @@ inside this repo.
 
 ## Key locations
 
-| Path                                                    | What it is                          |
-|---------------------------------------------------------|--------------------------------------|
-| `Tutorials/example_systems_tutorials/sweden_4_zones/`   | The Sweden simulator (main work)    |
-| `Tutorials/*.ipynb`                                     | Upstream GenX tutorials (do not edit)|
-| `~/projects/GenX.jl/example_systems/1_three_zones/`     | Reference for CSV formats           |
-| `~/projects/GenX.jl/src/`                               | Source of truth for input semantics  |
+| Path                                | What it is                          |
+|-------------------------------------|--------------------------------------|
+| `system/`                           | Network + 8760-h time-series CSVs   |
+| `resources/`                        | Resource definitions (Thermal/Vre/Storage/Hydro) |
+| `policies/`                         | CO2 cap + min-capacity policies     |
+| `plots/`, `scripts/`                | Plotting + validation Python        |
+| `data/fetch_entsoe.py`              | ENTSO-E real-data fetcher           |
+| `~/projects/GenX.jl/example_systems/1_three_zones/` | Reference for CSV formats |
+| `~/projects/GenX.jl/src/`           | Source of truth for input semantics  |
 
 ## Sweden case — what's real vs synthetic
 

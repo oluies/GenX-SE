@@ -70,12 +70,43 @@ RAW = HERE / "raw"
 SYS = ROOT / "system"
 RAW.mkdir(exist_ok=True)
 
-# ENTSO-E bidding-zone codes
-ZONES = ["SE_1", "SE_2", "SE_3", "SE_4"]
-ZONE_TO_GENX = {"SE_1": "z1", "SE_2": "z2", "SE_3": "z3", "SE_4": "z4"}
+# ENTSO-E bidding-zone codes for the 12 Nordic zones we model
+ZONES = [
+    "SE_1", "SE_2", "SE_3", "SE_4",
+    "NO_1", "NO_2", "NO_3", "NO_4", "NO_5",
+    "FI",
+    "DK_1", "DK_2",
+]
+# Map ENTSO-E code -> (GenX zone id, GenX zone label used in resource names).
+# The label is what build_variability_csv prefixes to resource columns.
+ZONE_TO_GENX = {
+    "SE_1": ("z1",  "SE1"),
+    "SE_2": ("z2",  "SE2"),
+    "SE_3": ("z3",  "SE3"),
+    "SE_4": ("z4",  "SE4"),
+    "NO_1": ("z5",  "NO1"),
+    "NO_2": ("z6",  "NO2"),
+    "NO_3": ("z7",  "NO3"),
+    "NO_4": ("z8",  "NO4"),
+    "NO_5": ("z9",  "NO5"),
+    "FI":   ("z10", "FI"),
+    "DK_1": ("z11", "DK1"),
+    "DK_2": ("z12", "DK2"),
+}
 
-# Cross-border interconnections (snitt) — ordered as (from, to)
-SNITT = [("SE_1", "SE_2"), ("SE_2", "SE_3"), ("SE_3", "SE_4")]
+# Cross-border interconnections — all 17 lines in Network.csv, as (from, to).
+# Includes 3 SE internal snitt, 7 SE↔neighbor lines, 6 NO internal lines,
+# and NO2↔DK1 Skagerrak. Used for flow validation only — NTC values come
+# from the static Network.csv.
+SNITT = [
+    ("SE_1", "SE_2"), ("SE_2", "SE_3"), ("SE_3", "SE_4"),
+    ("SE_1", "NO_4"), ("SE_2", "NO_3"), ("SE_3", "NO_1"),
+    ("SE_1", "FI"),   ("SE_3", "FI"),
+    ("SE_3", "DK_1"), ("SE_4", "DK_2"),
+    ("NO_1", "NO_2"), ("NO_1", "NO_3"), ("NO_1", "NO_5"),
+    ("NO_2", "NO_5"), ("NO_3", "NO_4"), ("NO_3", "NO_5"),
+    ("NO_2", "DK_1"),
+]
 
 # Map ENTSO-E PSR types to our GenX resource buckets
 # (see entsoe.mappings.PSRTYPE_MAPPINGS for full list)
@@ -153,17 +184,18 @@ _STEPS_PER_YEAR = {"1h": 8760, "15min": 35040}
 def build_demand_csv(loads: "dict[str, pd.DataFrame]", resolution: str) -> None:
     N = _STEPS_PER_YEAR[resolution]
     df = pd.concat(
-        {ZONE_TO_GENX[z]: loads[z]["MW"].reset_index(drop=True) for z in ZONES},
+        {ZONE_TO_GENX[z][0]: loads[z]["MW"].reset_index(drop=True) for z in ZONES},
         axis=1,
     )
     df = df.iloc[:N].copy().ffill().bfill()
     out = SYS / "Demand_data.csv"
+    zone_ids = [ZONE_TO_GENX[z][0] for z in ZONES]  # ["z1", "z2", ..., "z12"]
+    demand_cols = ",".join(f"Demand_MW_{zid}" for zid in zone_ids)
     with out.open("w") as f:
         f.write(
             "Voll,Demand_Segment,Cost_of_Demand_Curtailment_per_MW,"
             "Max_Demand_Curtailment,$/MWh,Rep_Periods,Timesteps_per_Rep_Period,"
-            "Sub_Weights,Time_Index,Demand_MW_z1,Demand_MW_z2,Demand_MW_z3,"
-            "Demand_MW_z4\n"
+            f"Sub_Weights,Time_Index,{demand_cols}\n"
         )
         seg = [
             ("50000", "1", "1",    "1",     "2000"),
@@ -178,21 +210,21 @@ def build_demand_csv(loads: "dict[str, pd.DataFrame]", resolution: str) -> None:
                 voll = s = cost = mc = dlr = ""
             rep = "1" if t == 0 else ""
             tspr = str(N) if t == 0 else ""
-            subw = "8760" if t == 0 else ""   # always 8760 hours per year
+            subw = "8760" if t == 0 else ""
             row = df.iloc[t]
+            demand_vals = ",".join(f"{row[zid]:.1f}" for zid in zone_ids)
             f.write(
                 f"{voll},{s},{cost},{mc},{dlr},{rep},{tspr},{subw},"
-                f"{t+1},{row['z1']:.1f},{row['z2']:.1f},"
-                f"{row['z3']:.1f},{row['z4']:.1f}\n"
+                f"{t+1},{demand_vals}\n"
             )
-    print(f"  wrote {out} ({len(df)} rows)")
+    print(f"  wrote {out} ({len(df)} rows, {len(zone_ids)} zones)")
 
 
 def build_variability_csv(gens: "dict[str, pd.DataFrame]", resolution: str) -> None:
     N = _STEPS_PER_YEAR[resolution]
     out_cols = {}
     for zone in ZONES:
-        gz = ZONE_TO_GENX[zone]
+        _zid, gz_label = ZONE_TO_GENX[zone]   # e.g. ("z5", "NO1")
         zone_gen = gens[zone]
         bucket = {}
         for psr, name in PSR_TO_BUCKET.items():
@@ -204,7 +236,7 @@ def build_variability_csv(gens: "dict[str, pd.DataFrame]", resolution: str) -> N
             if cap <= 0:
                 continue
             cf = (series / cap).clip(0.0, 1.0)
-            colname = f"{gz.upper().replace('Z', 'SE')}_{name}"
+            colname = f"{gz_label}_{name}"
             out_cols[colname] = cf.reset_index(drop=True).iloc[:N]
     df = pd.concat(out_cols, axis=1).ffill().bfill()
     df.insert(0, "Time_Index", range(1, len(df) + 1))

@@ -55,7 +55,11 @@ TECH_LABELS = {
     "battery":       "Battery",
 }
 
-ZONE_LABELS = {1: "SE1", 2: "SE2", 3: "SE3", 4: "SE4"}
+ZONE_LABELS = {
+    1: "SE1", 2: "SE2", 3: "SE3", 4: "SE4",
+    5: "NO1", 6: "NO2", 7: "NO3", 8: "NO4", 9: "NO5",
+    10: "FI", 11: "DK1", 12: "DK2",
+}
 
 
 def classify_resource(name: str) -> str:
@@ -81,9 +85,15 @@ def classify_resource(name: str) -> str:
 
 
 def extract_zone(name: str) -> int | None:
-    """Extract zone integer from a Resource name like 'SE3_solar_pv' → 3."""
-    m = re.match(r"SE(\d)_", name)
-    return int(m.group(1)) if m else None
+    """Extract zone integer from a Resource name.
+
+    Resource names follow the convention `<ZoneLabel>_<technology>` where
+    ZoneLabel is SE1..SE4, NO1..NO5, FI, DK1 or DK2. Returns the integer
+    zone id matching plots.load_results.ZONE_LABELS.
+    """
+    label_to_id = {v: k for k, v in ZONE_LABELS.items()}
+    head = name.split("_", 1)[0]
+    return label_to_id.get(head)
 
 
 # ---- File loaders ---------------------------------------------------------
