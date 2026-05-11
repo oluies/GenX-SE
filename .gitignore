@@ -28,3 +28,7 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Backups from in-place rescale script
+*.bak
+*.bak.*

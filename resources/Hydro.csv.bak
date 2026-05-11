@@ -1,5 +1,0 @@
-Resource,Zone,Existing_Cap_MWh,Existing_Cap_MW,New_Build,Can_Retire,Cap_Size,Min_Cap_MW,Max_Cap_MW,Inv_Cost_per_MWyr,Fixed_OM_Cost_per_MWyr,Var_OM_Cost_per_MWh,Heat_Rate_MMBTU_per_MWh,Fuel,Min_Power,Self_Disch,Eff_Up,Eff_Down,Hydro_Energy_to_Power_Ratio,Ramp_Up_Percentage,Ramp_Dn_Percentage,Up_Time,Down_Time,region,technology,cluster
-SE1_hydro_reservoir,1,0,5300,0,1,50,0,0,0,47000,0,0,None,0.05,0,1,1,2500,0.25,0.25,0,0,SE1,Conventional_Hydro,1
-SE2_hydro_reservoir,2,0,8200,0,1,50,0,0,0,47000,0,0,None,0.05,0,1,1,2200,0.25,0.25,0,0,SE2,Conventional_Hydro,1
-SE3_hydro_reservoir,3,0,2700,0,1,50,0,0,0,47000,0,0,None,0.05,0,1,1,600,0.25,0.25,0,0,SE3,Conventional_Hydro,1
-SE4_hydro_reservoir,4,0,300,0,1,50,0,0,0,47000,0,0,None,0.05,0,1,1,100,0.25,0.25,0,0,SE4,Conventional_Hydro,1
