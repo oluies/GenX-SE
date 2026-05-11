@@ -102,6 +102,24 @@ hides. Winter is dominated by thermal+hydro and an hourly model captures it
 fine — so for capacity-expansion studies of the 2035 decarbonisation
 question, 1-hour is usually enough.
 
+#### Observed sensitivity on this case (synthetic data, TDR=1)
+
+| Metric                  | 1-h         | 15-min       | Δ           |
+|-------------------------|------------:|-------------:|------------:|
+| Solve time (HiGHS-IPM)  | 68 s        | 98 s         | +44%        |
+| Total cost (objective)  | $3.427 B/yr | $3.429 B/yr  | +0.05%      |
+| Capacity-expansion mix  | +5.4 GW wind in SE1, +2.1 GW in SE2 | identical | — |
+| Annual energy total     | 144 TWh     | 144 TWh      | 0           |
+| **Peak marginal price** | **~$330/MWh** | **~$670/MWh** | **+103%** |
+
+**Takeaway:** Capacity and energy answers are essentially invariant to
+resolution — what you'd build to decarbonise Sweden doesn't change. But
+prices do: 15-min reveals brief scarcity peaks that 1-h smooths away, and
+those peaks are where battery and demand-response revenue lives. If the
+research question is "what should we build", run 1-h. If it's "how much do
+batteries earn" or "is SE4 price-volatile enough to justify reinforcement",
+run 15-min.
+
 ## Replacing the synthetic data with real observations
 
 1. Get an ENTSO-E API token (free, see `data/README.md`).
