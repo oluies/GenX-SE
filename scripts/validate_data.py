@@ -10,8 +10,9 @@ import csv
 import sys
 from pathlib import Path
 
-HOURS = 8760
 REPO = Path(__file__).resolve().parents[1]
+# Allowed resolutions: 1h (8760 steps/yr) and 15min (35040 steps/yr).
+VALID_N = {8760, 35040}
 
 
 def main() -> int:
@@ -29,18 +30,25 @@ def main() -> int:
     check(zones == ["SE1", "SE2", "SE3", "SE4"],
           f"Network.csv: zones must be SE1..SE4, got {zones}")
 
-    # Demand: header + 8760 rows ------------------------------------------
+    # Demand: header + N rows, where N matches Timesteps_per_Rep_Period ----
     rows = list(csv.reader(open(REPO / "system" / "Demand_data.csv")))
-    check(len(rows) == HOURS + 1,
-          f"Demand_data.csv: expected {HOURS + 1} rows, got {len(rows)}")
     hdr = rows[0]
+    tspr_idx = hdr.index("Timesteps_per_Rep_Period")
+    # First data row holds the metadata
+    declared_N = int(rows[1][tspr_idx])
+    check(declared_N in VALID_N,
+          f"Demand_data.csv: Timesteps_per_Rep_Period={declared_N} "
+          f"not in {sorted(VALID_N)} (expected 8760 for 1-h or 35040 for 15-min)")
+    N = declared_N
+    check(len(rows) == N + 1,
+          f"Demand_data.csv: expected {N + 1} rows (header + {N} steps), got {len(rows)}")
     for z in ("Demand_MW_z1", "Demand_MW_z2", "Demand_MW_z3", "Demand_MW_z4"):
         check(z in hdr, f"Demand_data.csv: missing column {z}")
 
-    # Variability: header + 8760 rows -------------------------------------
+    # Variability: header + N rows ----------------------------------------
     rows = list(csv.reader(open(REPO / "system" / "Generators_variability.csv")))
-    check(len(rows) == HOURS + 1,
-          f"Generators_variability.csv: expected {HOURS + 1} rows, got {len(rows)}")
+    check(len(rows) == N + 1,
+          f"Generators_variability.csv: expected {N + 1} rows, got {len(rows)}")
 
     var_resources = set(rows[0][1:])
     declared: set[str] = set()
@@ -62,11 +70,11 @@ def main() -> int:
     check(not extra,
           f"Resources declared but absent from variability CSV: {sorted(extra)}")
 
-    # Fuels: header + emit row + 8760 rows --------------------------------
+    # Fuels: header + emit row + N rows -----------------------------------
     rows = list(csv.reader(open(REPO / "system" / "Fuels_data.csv")))
     check(
-        len(rows) == HOURS + 2,
-        f"Fuels_data.csv: expected {HOURS + 2} rows (header + emit + {HOURS} hours), "
+        len(rows) == N + 2,
+        f"Fuels_data.csv: expected {N + 2} rows (header + emit + {N} steps), "
         f"got {len(rows)}",
     )
     fuels_hdr = rows[0][1:]

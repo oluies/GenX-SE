@@ -18,7 +18,15 @@ Setup:
     2. Request the "Restful API" role (free, manual approval, ~1 day).
     3. Copy your security token into a .env file in this directory:
           ENTSOE_API_TOKEN=your-token-here
-    4. Run: python3 fetch_entsoe.py --start 2024-01-01 --end 2025-01-01
+    4. Run:
+          python3 fetch_entsoe.py --start 2024-01-01 --end 2025-01-01
+          python3 fetch_entsoe.py --start 2024-01-01 --end 2025-01-01 --resolution 15min
+
+The Nordic synchronous area moved to a 15-min Imbalance Settlement Period
+in 2023-2024 and the day-ahead market (Nord Pool / SDAC) followed in
+October 2025. With `--resolution 15min` this script keeps the native
+15-min ENTSO-E data where available (SE1-SE4 load and most generation
+post-2023). Hourly-only series are forward-filled to the 15-min grid.
 
 Notes:
     * ENTSO-E reports SE1-SE4 as separate bidding-zone EICs.
@@ -96,39 +104,42 @@ def get_client() -> "EntsoePandasClient":
     return EntsoePandasClient(api_key=token)
 
 
-def fetch_load(client, zone: str, start, end) -> "pd.DataFrame":
-    cache = RAW / f"load_{zone}.parquet"
+_RESAMPLE_RULE = {"1h": "1h", "15min": "15min"}
+
+
+def fetch_load(client, zone: str, start, end, resolution: str) -> "pd.DataFrame":
+    cache = RAW / f"load_{zone}_{resolution}.parquet"
     if cache.exists():
         return pd.read_parquet(cache)
-    print(f"  load {zone} {start.date()} → {end.date()}")
+    print(f"  load {zone} {start.date()} → {end.date()} ({resolution})")
     s = client.query_load(zone, start=start, end=end)
-    s = s.resample("1h").mean().rename("MW").to_frame()
+    # resample handles both upsample (ffill) and downsample (mean)
+    s = s.resample(_RESAMPLE_RULE[resolution]).mean().ffill().rename("MW").to_frame()
     s.to_parquet(cache)
     return s
 
 
-def fetch_generation(client, zone: str, start, end) -> "pd.DataFrame":
-    cache = RAW / f"gen_{zone}.parquet"
+def fetch_generation(client, zone: str, start, end, resolution: str) -> "pd.DataFrame":
+    cache = RAW / f"gen_{zone}_{resolution}.parquet"
     if cache.exists():
         return pd.read_parquet(cache)
-    print(f"  generation {zone} {start.date()} → {end.date()}")
+    print(f"  generation {zone} {start.date()} → {end.date()} ({resolution})")
     df = client.query_generation(zone, start=start, end=end, psr_type=None)
-    # Columns are PSR type names; reduce to hourly
-    df = df.resample("1h").mean()
+    df = df.resample(_RESAMPLE_RULE[resolution]).mean().ffill()
     df.to_parquet(cache)
     return df
 
 
-def fetch_flows(client, start, end) -> "pd.DataFrame":
-    cache = RAW / "flows.parquet"
+def fetch_flows(client, start, end, resolution: str) -> "pd.DataFrame":
+    cache = RAW / f"flows_{resolution}.parquet"
     if cache.exists():
         return pd.read_parquet(cache)
     frames = []
     for a, b in SNITT:
-        print(f"  flow {a} -> {b}")
+        print(f"  flow {a} -> {b} ({resolution})")
         f_ab = client.query_crossborder_flows(a, b, start=start, end=end)
         f_ba = client.query_crossborder_flows(b, a, start=start, end=end)
-        net = (f_ab - f_ba).resample("1h").mean()
+        net = (f_ab - f_ba).resample(_RESAMPLE_RULE[resolution]).mean().ffill()
         net.name = f"{a}_to_{b}_MW_net"
         frames.append(net)
     df = pd.concat(frames, axis=1)
@@ -136,14 +147,16 @@ def fetch_flows(client, start, end) -> "pd.DataFrame":
     return df
 
 
-def build_demand_csv(loads: "dict[str, pd.DataFrame]") -> None:
+_STEPS_PER_YEAR = {"1h": 8760, "15min": 35040}
+
+
+def build_demand_csv(loads: "dict[str, pd.DataFrame]", resolution: str) -> None:
+    N = _STEPS_PER_YEAR[resolution]
     df = pd.concat(
         {ZONE_TO_GENX[z]: loads[z]["MW"].reset_index(drop=True) for z in ZONES},
         axis=1,
     )
-    # Trim/pad to exactly 8760
-    df = df.iloc[:8760].copy()
-    df = df.ffill().bfill()
+    df = df.iloc[:N].copy().ffill().bfill()
     out = SYS / "Demand_data.csv"
     with out.open("w") as f:
         f.write(
@@ -164,24 +177,23 @@ def build_demand_csv(loads: "dict[str, pd.DataFrame]") -> None:
             else:
                 voll = s = cost = mc = dlr = ""
             rep = "1" if t == 0 else ""
-            tspr = "8760" if t == 0 else ""
-            subw = "8760" if t == 0 else ""
+            tspr = str(N) if t == 0 else ""
+            subw = "8760" if t == 0 else ""   # always 8760 hours per year
             row = df.iloc[t]
             f.write(
                 f"{voll},{s},{cost},{mc},{dlr},{rep},{tspr},{subw},"
                 f"{t+1},{row['z1']:.1f},{row['z2']:.1f},"
                 f"{row['z3']:.1f},{row['z4']:.1f}\n"
             )
-    print(f"  wrote {out}")
+    print(f"  wrote {out} ({len(df)} rows)")
 
 
-def build_variability_csv(gens: "dict[str, pd.DataFrame]") -> None:
-    # Inferred capacity from observed peak (rough; replace with reported caps)
+def build_variability_csv(gens: "dict[str, pd.DataFrame]", resolution: str) -> None:
+    N = _STEPS_PER_YEAR[resolution]
     out_cols = {}
     for zone in ZONES:
         gz = ZONE_TO_GENX[zone]
         zone_gen = gens[zone]
-        # Aggregate by bucket
         bucket = {}
         for psr, name in PSR_TO_BUCKET.items():
             if psr in zone_gen.columns:
@@ -193,33 +205,37 @@ def build_variability_csv(gens: "dict[str, pd.DataFrame]") -> None:
                 continue
             cf = (series / cap).clip(0.0, 1.0)
             colname = f"{gz.upper().replace('Z', 'SE')}_{name}"
-            out_cols[colname] = cf.reset_index(drop=True).iloc[:8760]
+            out_cols[colname] = cf.reset_index(drop=True).iloc[:N]
     df = pd.concat(out_cols, axis=1).ffill().bfill()
     df.insert(0, "Time_Index", range(1, len(df) + 1))
     df.to_csv(SYS / "Generators_variability.csv", index=False, float_format="%.5f")
-    print(f"  wrote {SYS / 'Generators_variability.csv'}")
+    print(f"  wrote {SYS / 'Generators_variability.csv'} ({len(df)} rows)")
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--start", required=True, help="YYYY-MM-DD (UTC)")
     ap.add_argument("--end",   required=True, help="YYYY-MM-DD (UTC)")
+    ap.add_argument("--resolution", choices=["1h", "15min"], default="1h",
+                    help="Output timestep length (default: 1h)")
     args = ap.parse_args()
 
     client = get_client()
     start = pd.Timestamp(args.start, tz="UTC")
     end   = pd.Timestamp(args.end,   tz="UTC")
 
-    print(f"Fetching Swedish bidding-zone data {start.date()} → {end.date()}")
-    loads = {z: fetch_load(client, z, start, end) for z in ZONES}
-    gens  = {z: fetch_generation(client, z, start, end) for z in ZONES}
-    _flows = fetch_flows(client, start, end)  # noqa: F841 — saved to raw/
+    print(f"Fetching Swedish bidding-zone data {start.date()} → {end.date()} "
+          f"at {args.resolution} resolution")
+    loads = {z: fetch_load(client, z, start, end, args.resolution) for z in ZONES}
+    gens  = {z: fetch_generation(client, z, start, end, args.resolution) for z in ZONES}
+    _flows = fetch_flows(client, start, end, args.resolution)  # noqa: F841
 
-    build_demand_csv(loads)
-    build_variability_csv(gens)
+    build_demand_csv(loads, args.resolution)
+    build_variability_csv(gens, args.resolution)
 
-    print("Done. system/Demand_data.csv and Generators_variability.csv now "
-          "reflect ENTSO-E observations; raw downloads cached in data/raw/.")
+    print(f"Done. {args.resolution} data written to system/. Remember to run "
+          f"`python3 scripts/rescale_resources.py --to {args.resolution}` "
+          f"if you switched from another resolution.")
 
 
 if __name__ == "__main__":

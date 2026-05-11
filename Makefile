@@ -57,8 +57,20 @@ plot:  ## Render PNG + HTML plots from results/
 	$(PYTHON) -m plots.make_plots --results $(RESULTS_DIR) --out $(PLOTS_DIR)
 
 # Time-series generation --------------------------------------------------
-timeseries:  ## Regenerate synthetic 8760h CSVs
-	$(PYTHON) build_timeseries.py
+timeseries:  ## Regenerate synthetic 8760h CSVs (1-h timesteps)
+	$(PYTHON) build_timeseries.py --resolution 1h
+
+timeseries-15min:  ## Regenerate synthetic 35040-step CSVs (15-min timesteps)
+	$(PYTHON) build_timeseries.py --resolution 15min
+
+# Resolution switch -------------------------------------------------------
+to-15min:  ## Generate 15-min timeseries + rescale resource CSVs (1h -> 15min)
+	$(PYTHON) build_timeseries.py --resolution 15min
+	$(PYTHON) scripts/rescale_resources.py --from 1h --to 15min
+
+to-1h:  ## Revert: 1-h timeseries + rescale resource CSVs back to 1h
+	$(PYTHON) build_timeseries.py --resolution 1h
+	$(PYTHON) scripts/rescale_resources.py --from 15min --to 1h
 
 # Formatting --------------------------------------------------------------
 fmt:  ## Apply JuliaFormatter (SciML style)

@@ -67,14 +67,40 @@ expansion potential in Sweden).
 ## How to run
 
 ```bash
-cd Tutorials/example_systems_tutorials/sweden_4_zones/
-julia --project=. -e 'using Pkg; Pkg.add("GenX")'   # first time only
-julia Run.jl
+make install      # Julia + GenX + Python (uv) — first time only
+make run-fast     # solve with TimeDomainReduction=1 (≈30s with HiGHS)
+make plot         # PNG + interactive HTML in plots/output/
+# or just:
+make all
 ```
 
-Results land in `results/`. Expect a few minutes with HiGHS at hourly
-resolution; turn on `TimeDomainReduction: 1` in `settings/genx_settings.yml`
-for sub-minute solves at the cost of accuracy.
+Detailed runbook: [HOW_TO_RUN.md](HOW_TO_RUN.md).
+
+### 1-hour vs 15-minute resolution
+
+The Nordic synchronous area moved to a **15-min Imbalance Settlement
+Period** in 2023–2024, and the day-ahead market (Nord Pool / SDAC) went
+15-min in **October 2025**. The case ships at **1-hour** by default (8760
+steps); switch to 15-min with:
+
+```bash
+make to-15min     # regenerate timeseries + rescale resource CSVs (8760 -> 35040)
+make run          # full-resolution solve
+make to-1h        # revert
+```
+
+`scripts/rescale_resources.py` is what makes this safe: it multiplies
+`Up_Time` / `Down_Time` / `Min_Duration` / `Max_Duration` by 4 and
+divides `Ramp_Up_Percentage` / `Ramp_Dn_Percentage` by 4 so the physical
+behaviour stays the same (e.g. a 6-hour minimum-up time stays 6 hours,
+not 1.5 hours). The round-trip is exact, so flipping back and forth is
+lossless.
+
+15-min matters most for **summer pricing**: solar dawn/dusk ramps, battery
+intra-hour arbitrage, and wind cloud-front variability that hourly averaging
+hides. Winter is dominated by thermal+hydro and an hourly model captures it
+fine — so for capacity-expansion studies of the 2035 decarbonisation
+question, 1-hour is usually enough.
 
 ## Replacing the synthetic data with real observations
 
