@@ -292,3 +292,99 @@ Kraftnät figures, roughly (2023 actuals):
 
 If your dispatch matches the first two and produces a non-zero SE3↔SE4
 price spread, you're in the right ballpark.
+
+## Example run
+
+What you should see if you run `make all` on the committed defaults
+(12 Nordic zones, synthetic 8760-h profiles, TimeDomainReduction=1,
+HiGHS-IPM on an M1 Mac):
+
+| Output                | Value                                              |
+|-----------------------|----------------------------------------------------|
+| Solver status         | `OPTIMAL`                                          |
+| Wall time             | ~5 min 37 s (HiGHS-IPM, 11 representative weeks)   |
+| Objective (total cost)| **$10.62 B/yr**                                    |
+| Annual generation     | ~380 TWh across 12 zones (matches demand)          |
+| Existing capacity kept | All nuclear (SE3 6.9 GW + FI 4.4 GW), all hydro (~53 GW) |
+| New capacity built    | ~25 GW onshore wind, biggest in FI (+7.8 GW)       |
+| Solar PV              | Retired in every zone (synthetic CFs too pessimistic — fixable by swapping in ENTSO-E data) |
+| Battery storage       | 0 MW built (NREL ATB 2022 inputs too high relative to today's wind costs — see [Battery storage data sources](#battery-storage-data-sources)) |
+
+### Installed capacity by zone
+
+The optimiser keeps every existing nuclear and hydro plant and pushes
+hard on onshore wind expansion, especially in FI (where existing wind
++ nuclear + low-cost wind potential combine well). DK1 also picks up
+substantial new wind on top of its existing offshore fleet.
+
+![Installed capacity by zone](docs/images/capacity_by_zone.png)
+
+### Annual energy mix
+
+Hydro dominates NO and northern SE as expected; FI is the wind heavyweight
+post-expansion; nuclear delivers steady baseload in SE3 and FI. Annual
+generation totals match annual demand (~380 TWh), confirming the energy
+balance is solving cleanly.
+
+![Annual energy mix by zone](docs/images/annual_energy_mix.png)
+
+### Zonal price duration curves
+
+Most hours sit at zero or near-zero (renewable surplus, hydro at minimum
+flow), but the top ~2% of hours carry the scarcity premium — DK1 (the
+only Continental-sync zone in the model) shows the highest peak prices
+since it can't reach the Nordic hydro cushion without HVDC.
+
+![Zonal price duration curves](docs/images/zonal_price_duration.png)
+
+### Snitt + interconnector flow duration
+
+Net flow on each of the 17 lines, sorted high-to-low. The Swedish snitt
+1/2/4 carry the expected north-to-south transfer; NO1↔NO2 (the biggest
+internal Norwegian line at 3500 MW) saturates frequently during the
+spring melt; NO2↔DK1 Skagerrak exports south during summer surplus.
+
+![Snitt + interconnector flow duration](docs/images/snitt_flow_duration.png)
+
+### Dispatch: winter week and summer week
+
+A 168-hour stacked-area dispatch per zone, with the black demand curve
+overlaid. The winter sample shows nuclear + hydro + biomass CHP carrying
+base load with thermal peakers stepping in during evening peaks. The
+summer sample shows hydro reducing output and wind/solar taking over —
+this is where 15-min resolution would reveal additional intra-hour price
+spikes (see the [1h vs 15-min sensitivity table](#1-hour-vs-15-minute-resolution)).
+
+![Winter-week dispatch](docs/images/dispatch_winter.png)
+![Summer-week dispatch](docs/images/dispatch_summer.png)
+
+> **Reproducing this run** — clone the repo, then:
+>
+> ```bash
+> make install   # ~3 min, first time only
+> make all       # install + run-fast (TDR) + plot
+> ```
+>
+> Then `open plots/output/png/` (macOS) or browse to
+> `plots/output/html/` for interactive Plotly versions of each figure.
+
+## Documentation video
+
+*Coming soon — a 10-minute walkthrough covering:*
+
+* Repo tour (`make help`, where things live)
+* Running the case end-to-end (`make all`)
+* Reading the result CSVs (`results/{costs,capacity,power,flow,prices}.csv`)
+* Interpreting the plots in `plots/output/`
+* Swapping in real ENTSO-E data
+* Switching to 15-min resolution
+
+When the video is recorded, the embed will live here:
+
+```markdown
+[![GenX-SE walkthrough](docs/images/video-thumbnail.png)](https://youtu.be/<id>)
+```
+
+To record your own: `asciinema rec session.cast && agg session.cast video.gif`
+captures a terminal session as a GIF; for screen + voice, use OBS Studio
+or QuickTime → upload to YouTube → drop the URL above.
