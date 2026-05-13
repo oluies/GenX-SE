@@ -369,6 +369,5 @@ spikes (see the [1h vs 15-min sensitivity table](#1-hour-vs-15-minute-resolution
 > `plots/output/html/` for interactive Plotly versions of each figure.
 
 ## Documentation video
-
-
+[![Watch the video](https://img.youtube.com/vi/lasOYH2sRxU/0.jpg)](https://www.youtube.com/watch?v=lasOYH2sRxU)
 
