@@ -370,21 +370,5 @@ spikes (see the [1h vs 15-min sensitivity table](#1-hour-vs-15-minute-resolution
 
 ## Documentation video
 
-*Coming soon — a 10-minute walkthrough covering:*
 
-* Repo tour (`make help`, where things live)
-* Running the case end-to-end (`make all`)
-* Reading the result CSVs (`results/{costs,capacity,power,flow,prices}.csv`)
-* Interpreting the plots in `plots/output/`
-* Swapping in real ENTSO-E data
-* Switching to 15-min resolution
 
-When the video is recorded, the embed will live here:
-
-```markdown
-[![GenX-SE walkthrough](docs/images/video-thumbnail.png)](https://youtu.be/<id>)
-```
-
-To record your own: `asciinema rec session.cast && agg session.cast video.gif`
-captures a terminal session as a GIF; for screen + voice, use OBS Studio
-or QuickTime → upload to YouTube → drop the URL above.
