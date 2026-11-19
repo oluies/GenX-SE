@@ -57,7 +57,7 @@ jobs:
 
       - name: Upload results CSVs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: results-${{ matrix.os }}-julia-${{ matrix.julia-version }}
           path: results/
@@ -65,7 +65,7 @@ jobs:
 
       - name: Upload plots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: plots-${{ matrix.os }}-julia-${{ matrix.julia-version }}
           path: plots/output/
