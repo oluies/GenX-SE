@@ -12,7 +12,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        julia-version: ['1.9', '1.10', '1']
+        # 1.9 ar borttagen: Julia 1.9.4 startar inte langre pa ubuntu-latest.
+        # Dess libopenlibm.so kraver exekverbar stack, vilket karnan i
+        # runner-bilden nekar:
+        #   ERROR: Unable to load dependent library .../lib/julia/libopenlibm.so
+        #   cannot enable executable stack as shared object requires: Invalid argument
+        # Inget i repot andrades - runner-bilden gjorde det (20261111). 1.9 ar
+        # dessutom EOL. 1.10 och 1 tackar den stodda ytan.
+        julia-version: ['1.10', '1']
         os: [ubuntu-latest]
         include:
           - julia-version: '1'
@@ -21,7 +28,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: julia-actions/setup-julia@latest
+      # Pinnad till v3 i stallet for @latest. @latest ar en rorlig referens:
+      # CI kan ga sonder utan att en rad andras i repot, vilket ar precis vad
+      # som hande har. Resten av workflowen pinnar redan (cache@v2 och ett par
+      # SHA:n), sa det har var undantaget. Renovate kan folja v3.
+      - uses: julia-actions/setup-julia@v3
         with:
           version: ${{ matrix.julia-version }}
 
